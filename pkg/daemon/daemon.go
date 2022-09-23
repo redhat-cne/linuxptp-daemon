@@ -39,16 +39,17 @@ type ProcessManager struct {
 }
 
 type ptpProcess struct {
-	name             string
-	ifaces           []string
-	ptp4lSocketPath  string
-	ptp4lConfigPath  string
-	ts2PhcConfigPath string
-	configName       string
-	exitCh           chan bool
-	execMutex        sync.Mutex
-	stopped          bool
-	cmd              *exec.Cmd
+	name              string
+	ifaces            []string
+	ptp4lSocketPath   string
+	ptp4lConfigPath   string
+	ts2PhcConfigPath  string
+	syncE4lConfigPath string
+	configName        string
+	exitCh            chan bool
+	execMutex         sync.Mutex
+	stopped           bool
+	cmd               *exec.Cmd
 }
 
 func (p *ptpProcess) Stopped() bool {
@@ -213,6 +214,28 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 	} else {
 		glog.Infof("applyNodePtpProfile: not starting ts2phc, ts2phcOpts is empty")
 	}
+	if nodeProfile.SyncE4lOpts != nil {
+		synce4lConfigFile := fmt.Sprintf("synce4l.%d.cfg", runID)
+		err := dn.addSyncE4lProfileConfig(synce4lConfigFile, nodeProfile)
+		if err != nil {
+			return fmt.Errorf("failed to add synce4l config %s: %v", synce4lConfigFile, err)
+		}
+		configPath := fmt.Sprintf("/var/run/%s", synce4lConfigFile)
+		err = ioutil.WriteFile(configPath, []byte(*nodeProfile.SyncE4lConf), 0644)
+		if err != nil {
+			return fmt.Errorf("failed to write the configuration file named %s: %v", configPath, err)
+		}
+		dn.processManager.process = append(dn.processManager.process, &ptpProcess{
+			name:              "synce4l",
+			ifaces:            []string{},
+			configName:        synce4lConfigFile,
+			syncE4lConfigPath: configPath,
+			exitCh:            make(chan bool),
+			stopped:           false,
+			cmd:               synce4lCreateCmd(nodeProfile, configPath)})
+	} else {
+		glog.Infof("applyNodePtpProfile: not starting synce4l, synce4lOpts is empty")
+	}
 
 	// This will create the configuration needed to run the ptp4l and phc2sys
 	err := dn.addProfileConfig(socketPath, configFile, nodeProfile)
@@ -225,6 +248,8 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 	printWhenNotNil(nodeProfile.Interface, "Interface")
 	printWhenNotNil(nodeProfile.Ptp4lOpts, "Ptp4lOpts")
 	printWhenNotNil(nodeProfile.Ptp4lConf, "Ptp4lConf")
+	printWhenNotNil(nodeProfile.SyncE4lOpts, "SyncE4lOpts")
+	printWhenNotNil(nodeProfile.SyncE4lConf, "SyncE4lConf")
 	printWhenNotNil(nodeProfile.Phc2sysOpts, "Phc2sysOpts")
 	printWhenNotNil(nodeProfile.Ts2PhcOpts, "Ts2PhcOpts")
 	printWhenNotNil(nodeProfile.Ts2PhcConf, "Ts2PhcConf")
@@ -367,11 +392,57 @@ func (dn *Daemon) addTs2PhcProfileConfig(configFile string, nodeProfile *ptpv1.P
 	return nil
 }
 
+func (dn *Daemon) addSyncE4lProfileConfig(configFile string, nodeProfile *ptpv1.PtpProfile) error {
+
+	output := &syncE4lConf{}
+	err := output.populateSyncE4lConf(nodeProfile.SyncE4lConf)
+	if err != nil {
+		return err
+	}
+
+	output.profileName = *nodeProfile.Name
+
+	for index, section := range output.sections {
+		if section.sectionName == "[global]" {
+			section.options["message_tag"] = fmt.Sprintf("[%s]", configFile)
+			output.sections[index] = section
+		}
+	}
+	// This adds the flags needed for monitor
+	if nodeProfile.SyncE4lOpts != nil {
+		if !strings.Contains(*nodeProfile.SyncE4lOpts, "-m") {
+			glog.Info("adding -m to print messages to stdout for syncE to use prometheus exporter")
+			*nodeProfile.SyncE4lOpts = fmt.Sprintf("%s -m", *nodeProfile.SyncE4lOpts)
+		}
+	}
+
+	*nodeProfile.SyncE4lConf = output.renderSyncE4lConf()
+
+	if nodeProfile.SyncE4lOpts != nil {
+		commandLine := fmt.Sprintf("%s",
+			*nodeProfile.SyncE4lOpts)
+		nodeProfile.SyncE4lOpts = &commandLine
+	}
+
+	return nil
+}
+
 // ts2phcCreateCmd generate ts2phc command
 func ts2phcCreateCmd(nodeProfile *ptpv1.PtpProfile, confFilePath string) *exec.Cmd {
 	cmdLine := fmt.Sprintf("/usr/sbin/ts2phc -f %s %s",
 		confFilePath,
 		*nodeProfile.Ts2PhcOpts)
+	cmdLine = addScheduling(nodeProfile, cmdLine)
+
+	args := strings.Split(cmdLine, " ")
+	return exec.Command(args[0], args[1:]...)
+}
+
+// synce4lCreateCmd generate synce4l command
+func synce4lCreateCmd(nodeProfile *ptpv1.PtpProfile, confFilePath string) *exec.Cmd {
+	cmdLine := fmt.Sprintf("/usr/sbin/synce4l -f %s %s",
+		confFilePath,
+		*nodeProfile.SyncE4lOpts)
 	cmdLine = addScheduling(nodeProfile, cmdLine)
 
 	args := strings.Split(cmdLine, " ")
@@ -594,6 +665,12 @@ func cmdStop(p *ptpProcess) {
 		err := os.Remove(p.ts2PhcConfigPath)
 		if err != nil {
 			glog.Errorf("failed to remove ts2phc config path %s: %v", p.ts2PhcConfigPath, err)
+		}
+	}
+	if p.syncE4lConfigPath != "" {
+		err := os.Remove(p.syncE4lConfigPath)
+		if err != nil {
+			glog.Errorf("failed to remove synce4l config path %s: %v", p.syncE4lConfigPath, err)
 		}
 	}
 	<-p.exitCh
