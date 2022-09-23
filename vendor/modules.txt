@@ -85,7 +85,7 @@ github.com/modern-go/concurrent
 # github.com/modern-go/reflect2 v1.0.2
 ## explicit; go 1.12
 github.com/modern-go/reflect2
-# github.com/openshift/ptp-operator v0.0.0-20211118144821-2c782f302ffb => github.com/redhat-cne/ptp-operator v0.0.0-20220913165120-e04b57d9daa7
+# github.com/openshift/ptp-operator v0.0.0-20211118144821-2c782f302ffb => github.com/redhat-cne/ptp-operator v0.0.0-20220923163922-b5c9e7e2f614
 ## explicit; go 1.15
 github.com/openshift/ptp-operator/api/v1
 github.com/openshift/ptp-operator/pkg/client/clientset/versioned
@@ -532,4 +532,4 @@ sigs.k8s.io/yaml
 # k8s.io/apimachinery => k8s.io/apimachinery v0.23.0
 # k8s.io/client-go => k8s.io/client-go v0.23.0
 # github.com/operator-framework/operator-sdk => github.com/operator-framework/operator-sdk v1.13.0
-# github.com/openshift/ptp-operator => github.com/redhat-cne/ptp-operator v0.0.0-20220913165120-e04b57d9daa7
+# github.com/openshift/ptp-operator => github.com/redhat-cne/ptp-operator v0.0.0-20220923163922-b5c9e7e2f614

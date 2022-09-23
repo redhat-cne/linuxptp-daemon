@@ -452,6 +452,16 @@ func (in *PtpProfile) DeepCopyInto(out *PtpProfile) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.SyncE4lOpts != nil {
+		in, out := &in.SyncE4lOpts, &out.SyncE4lOpts
+		*out = new(string)
+		**out = **in
+	}
+	if in.SyncE4lConf != nil {
+		in, out := &in.SyncE4lConf, &out.SyncE4lConf
+		*out = new(string)
+		**out = **in
+	}
 	if in.Ptp4lConf != nil {
 		in, out := &in.Ptp4lConf, &out.Ptp4lConf
 		*out = new(string)
