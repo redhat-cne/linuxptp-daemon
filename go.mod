@@ -79,4 +79,4 @@ replace (
 
 replace github.com/operator-framework/operator-sdk => github.com/operator-framework/operator-sdk v1.13.0
 
-replace github.com/openshift/ptp-operator => github.com/redhat-cne/ptp-operator v0.0.0-20220913165120-e04b57d9daa7
+replace github.com/openshift/ptp-operator => github.com/redhat-cne/ptp-operator v0.0.0-20220923163922-b5c9e7e2f614

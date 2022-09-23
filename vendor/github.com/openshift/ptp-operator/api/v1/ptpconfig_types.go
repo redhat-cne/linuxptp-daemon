@@ -66,6 +66,8 @@ type PtpProfile struct {
 	Ptp4lOpts   *string `json:"ptp4lOpts,omitempty"`
 	Phc2sysOpts *string `json:"phc2sysOpts,omitempty"`
 	Ts2PhcOpts  *string `json:"ts2PhcOpts,omitempty"`
+	SyncE4lOpts *string `json:"syncE4lOpts,omitempty"`
+	SyncE4lConf *string `json:"syncE4lConf,omitempty"`
 	Ptp4lConf   *string `json:"ptp4lConf,omitempty"`
 	Ts2PhcConf  *string `json:"ts2PhcConf,omitempty"`
 	// +kubebuilder:validation:Enum=SCHED_OTHER;SCHED_FIFO;
